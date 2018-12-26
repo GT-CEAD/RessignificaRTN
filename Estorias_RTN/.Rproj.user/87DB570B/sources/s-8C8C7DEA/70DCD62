@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1543256097432.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "70DCD62",
+    "lastKnownWriteTime" : 1545054432,
+    "last_content_update" : -2147483648,
+    "path" : "C:/Users/fernando.barbalho/OneDrive - Secretaria do Tesouro Nacional/LatinR/Estorias_RTN/API_Grandes_Numeros_STN.R",
+    "project_path" : "API_Grandes_Numeros_STN.R",
+    "properties" : {
+        "cursorPosition" : "200,37",
+        "scrollLine" : "0",
+        "tempName" : "Untitled6"
+    },
+    "relative_order" : 25,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -1,0 +1,1532 @@
+---
+title: "Ressignificando o Resultado do Tesouro Nacional"
+resource_files:
+- app.R
+runtime: shiny
+output:
+  html_document: 
+    code_folding: hide
+    theme: default
+---
+
+
+
+
+<!--code_folding -> mostra ou não o código do R-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+
+
+<!--?cones podem ser achados no seguinte endere?o: https://www.w3schools.com/icons/fontawesome_icons_intro.asp-->
+
+<style>
+h1 {
+  text-align:center
+}
+body {
+  background-color: #FFFFFF;
+  text-align:justify
+}
+</style>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/3.6.3/iframeResizer.contentWindow.min.js" defer></script>
+
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(magrittr)
+
+
+
+```
+
+```{css, echo=FALSE}
+* { 
+  font-family:"Open Sans";
+  }
+
+h1, h2, h3, h4{
+  color: #1E4C7A;
+  
+}
+.destaques {
+  padding: 1%;
+  background-color: #eae6af;
+}
+
+.destaques ul {
+  color: #004a93;
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.destaques a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.destaques p {
+  padding: 1%;
+}
+
+.destaques p:hover{
+  color: #eae6af;
+  background-color: #004a93;
+}
+
+```
+
+
+```{r Funcoes}
+source("Funcoes_analise_rtn.R")
+
+```
+
+
+
+```{r Carga_inicial, warning = FALSE, message = FALSE}
+
+library(readxl)
+#library(XLConnect)
+library(tidyr)
+library(RCurl)
+library(ckanr)
+
+
+
+ultima_carga<-""
+
+load("todas_series.Rdata")
+
+#tb_ckan<-resource_show(id="527ccdb1-3059-42f3-bf23-b5e3ab4c6dc6",url="http://www.tesourotransparente.gov.br/ckan")
+
+tb_ckan<-resource_show(id="527ccdb1-3059-42f3-bf23-b5e3ab4c6dc6",url="https://apickan.tesouro.gov.br/ckan")
+
+
+mudou<- (tb_ckan$last_modified!=ultima_carga)
+
+#mudou<-FALSE
+
+
+if (mudou){
+  ultima_carga<- tb_ckan$last_modified
+  URL_add <- tb_ckan$url
+  
+  URL_add<-gsub("https://www.tesourotransparente.gov.br","https://apickan.tesouro.gov.br",URL_add)
+  
+  tmp = paste(getwd(),"temp.xlsx")
+  
+  
+  tmp = tempfile(fileext = ".xlsx")
+  
+  
+  
+  download.file(URL_add,mode = "wb", destfile = tmp)
+  #rtn_geral <- read.xlsx(tmp, sheetIndex=2, rowIndex = c(5:79))
+  rtn_geral <- read_xlsx(tmp,sheet = 2,skip = 4,n_max = 74)
+  #rtn_receita<-read.xlsx(tmp, sheetIndex=4, rowIndex = c(5:53))
+  rtn_receita<- read_xlsx(tmp,sheet = 4,skip = 4,n_max = 48)
+  #rtn_despesa<- read.xlsx(tmp, sheetIndex=8, rowIndex = c(5:92))
+  rtn_despesa<- read_xlsx(tmp,sheet = 8,skip = 4,n_max = 88)
+  #deflator_IPCA <- read.xlsx(tmp,sheetIndex=5, rowIndex = c(55:55),header=FALSE) #vai ser sempre a última linha de receita + 2
+  deflator_IPCA <- read_xlsx(tmp,sheet = 5,skip = 54,n_max = 1, col_names = FALSE)
+  names(deflator_IPCA)<-names(rtn_receita)
+  
+  
+
+  names(rtn_geral)[1]<-"Rubrica"
+  series_temporais_analise<-gather(rtn_geral,Data, Valor,-Rubrica)
+  #series_temporais_analise$Data<-gsub("X","",series_temporais_analise$Data)
+  series_temporais_analise$Data<-as.Date(as.numeric(series_temporais_analise$Data), origin="1899-12-30")
+  series_temporais_analise$Valor <-as.numeric(series_temporais_analise$Valor)
+  series_temporais_analise$Valor[is.na(series_temporais_analise$Valor)]<-0
+  rm(rtn_geral)
+  
+  
+  names(rtn_receita)[1]<-"Rubrica"
+  series_temporais_analise_rec<-gather(rtn_receita,Data, Valor,-Rubrica)
+  #series_temporais_analise_rec$Data<-gsub("X","",series_temporais_analise_rec$Data)
+  series_temporais_analise_rec$Data<-as.Date(as.numeric(series_temporais_analise_rec$Data), origin="1899-12-30")
+  series_temporais_analise_rec$Valor <-as.numeric(series_temporais_analise_rec$Valor)
+  series_temporais_analise_rec$Valor[is.na(series_temporais_analise_rec$Valor)]<-0
+  rm(rtn_receita)
+  
+  names(rtn_despesa)[1]<-"Rubrica"
+  series_temporais_analise_desp<-gather(rtn_despesa,Data, Valor,-Rubrica)
+  #series_temporais_analise_desp$Data<-gsub("X","",series_temporais_analise_desp$Data)
+  series_temporais_analise_desp$Data<-as.Date(as.numeric(series_temporais_analise_desp$Data), origin="1899-12-30")
+  series_temporais_analise_desp$Valor <-as.numeric(series_temporais_analise_desp$Valor)
+  series_temporais_analise_desp$Valor[is.na(series_temporais_analise_desp$Valor)]<-0
+  rm(rtn_despesa)
+  
+  names(deflator_IPCA)[1]<-"Rubrica"
+  series_temporais_analise_IPCA<-gather(deflator_IPCA,Data, Valor,-Rubrica)
+  #series_temporais_analise_IPCA$Data<-gsub("X","",series_temporais_analise_IPCA$Data)
+  series_temporais_analise_IPCA$Data<-as.Date(as.numeric(series_temporais_analise_IPCA$Data), origin="1899-12-30")
+  series_temporais_analise_IPCA$Valor <-as.numeric(series_temporais_analise_IPCA$Valor)
+  rm(deflator_IPCA)
+  
+  URL_add<-"https://apickan.tesouro.gov.br/ckan/dataset/ab56485b-9c40-4efb-8563-9ce3e1973c4b/resource/7a535375-4e15-4ebb-bb49-25daf05330bb/download/Metadados---NFGC.xlsx"
+  
+  tmp = paste(getwd(),"temp.xlsx")
+  
+  
+  tmp = tempfile(fileext = ".xlsx")
+  
+  download.file(URL_add,mode = "wb", destfile = tmp)
+
+
+  #metadados_rec<- read.xlsx(tmp, sheetIndex=4, startRow = 5, colIndex = c(2,3))
+  metadados_rec<-read_xlsx(tmp,sheet = 4,skip =4)
+  metadados_rec <- metadados_rec[,c(2,3)]
+  #metadados_desp<-read.xlsx(tmp, sheetIndex=8, startRow = 5, colIndex = c(1,2))
+  metadados_desp<-read_xlsx(tmp,sheet = 8,skip =4)
+  metadados_desp <- metadados_desp[,c(1,2)]
+  
+  names(metadados_rec)<-c("Rubrica","Descricao")
+  names(metadados_desp) <- names(metadados_rec)
+
+  
+  
+  
+  save(list = c("metadados_rec","metadados_desp","series_temporais_analise_IPCA", "series_temporais_analise_desp","series_temporais_analise_rec","series_temporais_analise","ultima_carga" ),file = "todas_series.Rdata")
+  rm(series_temporais_analise)
+  
+
+}
+
+# library(xlsx)
+# library(XLConnect)
+# library(tidyr)
+# library(RCurl)
+# library(ckanr)
+# 
+# ultima_carga<-""
+# 
+# load("todas_series.Rdata")
+# 
+# #tb_ckan<-resource_show(id="527ccdb1-3059-42f3-bf23-b5e3ab4c6dc6",url="http://www.tesourotransparente.gov.br/ckan")
+# 
+# tb_ckan<-resource_show(id="527ccdb1-3059-42f3-bf23-b5e3ab4c6dc6",url="https://apickan.tesouro.gov.br/ckan")
+# 
+# 
+# mudou<- (tb_ckan$last_modified!=ultima_carga)
+# 
+# #mudou<-FALSE
+# 
+# 
+# if (mudou){
+#   ultima_carga<- tb_ckan$last_modified
+#   URL_add <- tb_ckan$url
+#   
+#   URL_add<-gsub("https://www.tesourotransparente.gov.br","https://apickan.tesouro.gov.br",URL_add)
+#   
+#   tmp = paste(getwd(),"temp.xlsx")
+#   
+#   
+#   tmp = tempfile(fileext = ".xlsx")
+#   
+#   
+#   
+#   download.file(URL_add,mode = "wb", destfile = tmp)
+#   rtn_geral <- read.xlsx(tmp, sheetIndex=2, rowIndex = c(5:79))
+#   rtn_receita<-read.xlsx(tmp, sheetIndex=4, rowIndex = c(5:53))
+#   rtn_despesa<- read.xlsx(tmp, sheetIndex=8, rowIndex = c(5:92))
+#   deflator_IPCA <- read.xlsx(tmp,sheetIndex=5, rowIndex = c(55:55),header=FALSE) #vai ser sempre a última linha de receita + 2
+#   names(deflator_IPCA)<-names(rtn_receita)
+#   
+#   
+# 
+#   names(rtn_geral)[1]<-"Rubrica"
+#   series_temporais_analise<-gather(rtn_geral,Data, Valor,-Rubrica)
+#   series_temporais_analise$Data<-gsub("X","",series_temporais_analise$Data)
+#   series_temporais_analise$Data<-as.Date(as.numeric(series_temporais_analise$Data), origin="1899-12-30")
+#   series_temporais_analise$Valor <-as.numeric(series_temporais_analise$Valor)
+#   series_temporais_analise$Valor[is.na(series_temporais_analise$Valor)]<-0
+#   rm(rtn_geral)
+#   
+#   
+#   names(rtn_receita)[1]<-"Rubrica"
+#   series_temporais_analise_rec<-gather(rtn_receita,Data, Valor,-Rubrica)
+#   series_temporais_analise_rec$Data<-gsub("X","",series_temporais_analise_rec$Data)
+#   series_temporais_analise_rec$Data<-as.Date(as.numeric(series_temporais_analise_rec$Data), origin="1899-12-30")
+#   series_temporais_analise_rec$Valor <-as.numeric(series_temporais_analise_rec$Valor)
+#   series_temporais_analise_rec$Valor[is.na(series_temporais_analise_rec$Valor)]<-0
+#   rm(rtn_receita)
+#   
+#   names(rtn_despesa)[1]<-"Rubrica"
+#   series_temporais_analise_desp<-gather(rtn_despesa,Data, Valor,-Rubrica)
+#   series_temporais_analise_desp$Data<-gsub("X","",series_temporais_analise_desp$Data)
+#   series_temporais_analise_desp$Data<-as.Date(as.numeric(series_temporais_analise_desp$Data), origin="1899-12-30")
+#   series_temporais_analise_desp$Valor <-as.numeric(series_temporais_analise_desp$Valor)
+#   series_temporais_analise_desp$Valor[is.na(series_temporais_analise_desp$Valor)]<-0
+#   rm(rtn_despesa)
+#   
+#   names(deflator_IPCA)[1]<-"Rubrica"
+#   series_temporais_analise_IPCA<-gather(deflator_IPCA,Data, Valor,-Rubrica)
+#   series_temporais_analise_IPCA$Data<-gsub("X","",series_temporais_analise_IPCA$Data)
+#   series_temporais_analise_IPCA$Data<-as.Date(as.numeric(series_temporais_analise_IPCA$Data), origin="1899-12-30")
+#   series_temporais_analise_IPCA$Valor <-as.numeric(series_temporais_analise_IPCA$Valor)
+#   rm(deflator_IPCA)
+#   
+#   URL_add<-"https://apickan.tesouro.gov.br/ckan/dataset/ab56485b-9c40-4efb-8563-9ce3e1973c4b/resource/7a535375-4e15-4ebb-bb49-25daf05330bb/download/Metadados---NFGC.xlsx"
+#   
+#   tmp = paste(getwd(),"temp.xlsx")
+#   
+#   
+#   tmp = tempfile(fileext = ".xlsx")
+#   
+#   download.file(URL_add,mode = "wb", destfile = tmp)
+# 
+# 
+#   metadados_rec<- read.xlsx(tmp, sheetIndex=4, startRow = 5, colIndex = c(2,3))
+#   metadados_desp<-read.xlsx(tmp, sheetIndex=8, startRow = 5, colIndex = c(1,2))
+#   names(metadados_rec)<-c("Rubrica","Descricao")
+#   names(metadados_desp) <- names(metadados_rec)
+# 
+#   
+#   
+#   
+#   save(list = c("metadados_rec","metadados_desp","series_temporais_analise_IPCA", "series_temporais_analise_desp","series_temporais_analise_rec","series_temporais_analise","ultima_carga" ),file = "todas_series.Rdata")
+#   rm(series_temporais_analise)
+#   
+# 
+# }
+
+```
+
+# Destaques
+
+<div class="destaques">
+
+[Visualize como se forma o resultado primário mês a mês desde Janeiro de 1997.](#section-GrafResPrim)
+
+[Analise sob várias visões as receitas que compõem o resultado primário.](#section-RecPrimario)
+
+[Analise sob várias visões as despesas que compõem o resultado primário.](#section-DespPrimario)
+
+[Identifique quais as tendências de queda ou de crescimento das receitas.](#section-Tendencia)
+
+[Identifique os meses que mais concentram uma determinada receita ou despesa.](#section-Sazonalidade)
+
+[Teste sua aprendizagem de forma lúdica no game das curvas de receita e despesas.](#section-Gamificacao)
+
+</div>
+
+# Visão Geral
+Os diversos governos no mundo, seja no nível de municípios, estados ou países, executam suas ações dentro daquilo que cada população entende como papel do Estado. Essas ações implicam necessariamente em despesas que são custeadas por diversos tipos de receitas. Os impactos positivos ou negativos da priorização das despesas – e, consequentemente, da alocação das receitas – é consequência das políticas públicas que são priorizadas.
+
+Para além do efeito nas políticas públicas, a gestão dessas entradas e saídas de recursos costuma impactar questões econômicas, podendo atingir direta ou indiretamente os cidadãos, as empresas e as relações entre os governos, por exemplo. Destaca-se, dentre essas questões, os juros, a inflação e a dívida.
+
+Seja para entender as priorizações de políticas públicas, seja para ficar atento aos impactos da gestão das finanças públicas, julga-se interessante acompanhar a evolução das receitas e despesas de um governo. Este aplicativo tem o objetivo de fornecer informações para uma melhor compreensão dos fluxos de entrada e saída de recursos, além de trazer algumas primeiras análises mais avançadas. O intuito é fomentar o debate, a participação social e o controle social sobre as finanças públicas do governo central brasileiro (que engloba os poderes executivo, legislativo e judiciário federais).
+
+
+
+# Resultado Primário
+
+O instrumento utilizado aqui para apresentar conceitos é o chamado Resultado do Tesouro Nacional (RTN). Trata-se de uma consolidação de informações de receitas e despesas do governo central brasileiro, realizada mensalmente pela Secretaria do Tesouro Nacional (STN).
+As receitas e despesas com juros, vale destacar, não são incluídas no RTN. Por conta disso, e para padronizar a terminologia, as receitas são reconhecidas como receitas primárias e as despesas, como despesas primárias. A diferença entre receita primária e despesa primária é chamada de resultado primário.
+Quando as receitas primárias são maiores que as despesas primárias, encontra-se o chamado superávit primário. Quando o contrário acontece, há um déficit primário.
+É bem provável que você já tenha ouvido falar bastante desses termos. Eles são comuns nos debates econômicos e estão associados a metas que os governos precisam atingir. Veja abaixo o resultado de algumas buscas feitas na internet sobre esses termos.
+
+
+<a href="https://www.google.com.br/search?q=%22Resultado+Primario%22&dcr=0&source=lnms&sa=X&ved=0ahUKEwjQtJ_a0pbaAhUFIpAKHRgHB4AQ_AUICSgA&biw=1366&bih=641&dpr=1" target="_blank">Resultados de pesquisa para Resultado Primário</a>
+
+<a href="https://www.google.com.br/search?dcr=0&biw=1366&bih=641&ei=Xou_WrLmNc65wgTmqrj4CA&q=%22superavit+primario%22&oq=%22super%C3%A1vit+prim%C3%A1rio%22&gs_l=psy-ab.3..0i22i30k1l10.62762.69335.0.70388.7.7.0.0.0.0.122.678.0j6.6.0..2..0...1.1.64.psy-ab..1.6.675...0j0i7i30k1.0.iQFt_ZRqWwo" target="_blank">Resultados de pesquisa para Superávit Primário</a>
+
+<a href="https://www.google.com.br/search?dcr=0&biw=1366&bih=641&ei=aoy_Wvn8A4KkwASfoJeQBQ&q=%22deficit+primario%22&oq=%22d%C3%A9ficit+prim%C3%A1rio%22&gs_l=psy-ab.12...0.0.0.133647.0.0.0.0.0.0.0.0..0.0....0...1..64.psy-ab..0.0.0....0.QtVBKkUusLI" target="_blank">Resultados de pesquisa para Déficit Primário</a>
+
+
+```{r}
+
+# library(shiny)
+# # Simple shiny layout for demo sake
+# shinyApp(
+#   
+#   ui = fluidPage({
+#       htmlOutput("RP")
+# }),
+# server = function(input, output) {
+#   output$RP <- renderUI({
+#     
+#     
+# 
+#     #HTML(fab)
+#     HTML(readLines('https://www.google.com.br/search?q=%22Resultado+Primario%22&dcr=0&source=lnms&sa=X&ved=0ahUKEwjQtJ_a0pbaAhUFIpAKHRgHB4AQ_AUICSgA&biw=1366&bih=641&dpr=1'))
+#     
+#   })  
+# },
+#  
+#   options = list(height = 400)
+# )
+# 
+  
+```
+
+
+
+
+## Análise do Resultado Primário {#GrafResPrim}
+Como já foi dito, o resultado primário é a diferença entre receitas e despesas primárias. Se a diferença for positiva, tem-se um superávit primário. Caso seja negativa, um déficit primário. Pela estrutura do RTN, o Resultado Primário é calculado pela seguinte fórmula:
+
+$$ RP = RL - DT + FSB $$
+Onde: </BR>
+RP = Resultado Primário </BR>
+RL = Receita Líquida </BR>
+DT = Despesa Total </BR>
+FSB = Resultado do Fundo Soberano do Brasil </BR>
+
+O gráfico abaixo mostra a evolução das séries relacionadas à fórmula do Resultado Primário. Observe o comportamento da série RP, procurando identificar os pontos onde os valores são positivos e negativos. Para esses pontos, busque os valores das séries RL e DT, para verificar como a diferença entre essas duas séries está gerando superávits e déficits primários. Experimente mover as setas abaixo do gráfico para esquerda ou para direita, para analisar com mais foco um período específico. Importante: todos os valores apresentados neste aplicativo são expressos em milhões de reais, a menos que haja expressamente uma notação diferente.
+
+```{r Tabela_resultado_primario, fig.width=8, fig.height=6}
+
+#######################Melhorar
+# 1- Implementar função que faça a carga das rubricas a partir de uma lista hierárquica
+
+load("todas_series.Rdata")
+serie_trabalho <- series_temporais_analise[grep("VI. PRIM",series_temporais_analise$Rubrica),]
+serie_trabalho <- rbind(serie_trabalho,series_temporais_analise[grep("III. RECEITA",series_temporais_analise$Rubrica),])
+serie_trabalho <- rbind(serie_trabalho,series_temporais_analise[grep("IV. DESPESA TOTAL",series_temporais_analise$Rubrica),])
+serie_trabalho <- rbind(serie_trabalho,series_temporais_analise[grep("V. FUNDO SOBERANO DO BRASIL",series_temporais_analise$Rubrica),])
+
+rm(series_temporais_analise) 
+
+ano_fim<-as.numeric(substr(serie_trabalho$Data[NROW(serie_trabalho)],1,4))
+mes_fim<-as.numeric(substr(serie_trabalho$Data[NROW(serie_trabalho)],6,7))
+ts_serie_trabalho_prim <- ts(serie_trabalho$Valor[grep("VI. PRIM",serie_trabalho$Rubrica)],start = c(1997,1),end = c(ano_fim,mes_fim),frequency = 12)
+ts_serie_trabalho_rec  <- ts(serie_trabalho$Valor[grep("III. RECEITA",serie_trabalho$Rubrica)],start = c(1997,1),end = c(ano_fim,mes_fim),frequency = 12)
+ts_serie_trabalho_desp  <- ts(serie_trabalho$Valor[grep("IV. DESPESA TOTAL",serie_trabalho$Rubrica)],start = c(1997,1),end = c(ano_fim,mes_fim),frequency = 12)
+ts_serie_trabalho_fsb  <- ts(serie_trabalho$Valor[grep("V. FUNDO SOBERANO DO BRASIL",serie_trabalho$Rubrica)],start = c(1997,1),end = c(ano_fim,mes_fim),frequency = 12)
+ts_serie_trabalho_fsb[ts_serie_trabalho_fsb==0]<-NA
+save(list = "serie_trabalho",file = "serie_trabalho_prim.Rdata")
+y_min <- min(as.numeric(serie_trabalho$Valor))
+y_max <- max(as.numeric(serie_trabalho$Valor))
+rm(serie_trabalho)
+series <-cbind(ts_serie_trabalho_prim,ts_serie_trabalho_rec,ts_serie_trabalho_desp,ts_serie_trabalho_fsb)
+
+library(dygraphs) #Série temporal dinâmica
+
+
+
+dygraph(series,main = "Resultado Primário - Governo central") %>%
+  dyRangeSelector() %>%
+  dyAxis(name= "y",valueRange = c(y_min,y_max)) %>%
+  dySeries(label = "RP") %>%
+  dySeries(label = "RL") %>%
+  dySeries(label = "DT") %>%
+  dySeries(label = "FSB") %>%
+  dyLegend(show = "always", hideOnMouseOut = TRUE, width = 400)%>%
+  dyOptions( drawGrid = FALSE)%>%
+  dyHighlight(highlightCircleSize = 5)
+  #connectSeparatedPoints = TRUE,
+
+```
+
+</br>
+De forma ilustrativa, pode ser observado no gráfico que ocorreram superávits primários em novembro de 2013 e em outubro de 2017. Nota-se nesses casos que a Receita Líquida foi superior à Despesa Total, enquanto que o valor do fluxo de Fundo Soberano estava zerado. O contrário ocorreu, por exemplo, em agosto de 2014 e setembro de 2017, gerando dessa forma déficits primários.
+
+A série completa do Resultado Primário e de seus componentes desde Janeiro de 1997 pode ser baixada a partir do link abaixo
+```{r}
+load("serie_trabalho_prim.Rdata")
+write.csv2(serie_trabalho, "./file.csv")
+
+library(magrittr)
+readLines("./file.csv") %>%
+  paste0(collapse="\n") %>%
+  openssl::base64_encode() -> encoded
+rm(serie_trabalho)
+
+#Monta_Arquivo_CSV(serie_trabalho)
+```
+
+
+<a download="file.csv" href="`r sprintf('data:text/csv;base64,%s', encoded)`">Download CSV</a>
+</br>
+
+Você também pode ver as séries RP, RL, DT de forma separada a partir do painel abaixo. </br>
+```{r}
+
+
+library(shiny)
+library(tableHTML)
+load("todas_series.Rdata")
+shinyApp(
+  ui = fluidPage(
+  tags$style(make_css(list('.dygraph-legend', 
+                             
+                          c('left', 'background-color'), 
+                          c('70px !important', 'opaque !important')))),
+
+
+        sidebarPanel(
+      selectInput("rubrica", "Rubricas",
+                  choices = c("Resultado Primário"= "VI. PRIM",
+                              "Receita Líquida" = "III. RECEITA",
+                              "Despesa Total" = "IV. DESPESA TOTAL")
+      ),
+      radioButtons("tipoValor", "Tipo Valor",
+                  choices = c("Indexado IPCA"="2",
+                              "Nominal"= "1")),
+      radioButtons("tipoPeriodo", "Mensal acumulado por",
+                  choices = c("12 meses"="12",
+                              "Mês"= "m",
+                              "Trimestre"="t",
+                              "Ano" ="a"))
+      
+    ),
+    
+    mainPanel(
+      dygraphOutput("Grafico_selecao_usuario")
+
+    )
+    
+  ),
+  
+  server = function(input, output) {
+    output$Grafico_selecao_usuario <- renderDygraph({
+      Grafico_selecao_usuario(series_temporais_analise,
+                    input$tipoValor,
+                    input$tipoPeriodo,
+                    input$rubrica,
+                    input$rubrica,
+                    "Análise Resultado Primário",
+                    TRUE)
+    })
+  },
+  
+  options = list(height = 500)
+)
+
+
+
+```
+
+Você tem a opção de ver os dados expressos em valores nominais ou indexados pelo IPCA. A primeira opção revela o valor registrado na época em que foi apurado. Já a segunda opção mostra valores corrigidos por um índice que mede a inflação, justamente para retirar os efeitos da inflação sobre os dados analisados.
+
+A consulta também permite que se veja os valores mensais sem nenhum acúmulo, valores acumulados em doze meses, valores acumulados em um ano e valores acumulados em um trimestre. Experimente refazer a consulta combinando as diversas opções disponíveis e veja o efeito resultante no gráfico.
+
+
+# Receitas Primárias {#RecPrimario}
+
+Uma vez apresentado o conceito de Resultado Primário e a sua fórmula, é interessante conhecer quais são exatamente as receitas e despesas que entram no cálculo desse indicador fiscal. Nesta seção explora-se as receitas primárias. A seção seguinte será focada nas despesas primárias.
+
+Antes de se aprofundar nos detalhes e de realizar qualquer análise, é importante saber como as informações são organizadas. De forma geral, elabora-se uma hierarquia na qual os valores são reunidos de acordo com alguma lógica de organização. Por exemplo, no caso das receitas, a primeira estrutura da hierarquia resulta na Receita Líquida, sendo composta pela Receita total arrecadada, excluídas as Transferências por Repartição de Receitas (receitas apuradas pelo governo central, mas que devem ser repassadas para estados e municípios): 
+
+I. Receita Total
+
+II. Transferência por Repartição de Receitas
+
+III. Receita Lìquida
+
+Nesse sentido, para melhorar a organização desses conceitos e unificar a linguagem, há uma codificação para todos os elementos que compõem o RTN.
+
+Perceba que a receita total é formada por elementos que compõem a sua hierarquia. E esses elementos também são resultado de um agrupamento de outros itens. Essa estrutura vai descendo até chegarmos nas chamadas receitas que não possuem nenhuma aglutinação.
+Abaixo um exemplo dessa estrutura:
+
+I. Receita Total
+
+I.1 -  Receita Administrada pela RFB
+
+I.1.1    Imposto de Importação
+
+I.1.2    IPI
+
+I.1.2.1    IPI - Fumo
+
+I.1.2.2    IPI - Bebidas
+
+I.1.2.3    IPI - Automóveis
+
+I.1.2.4    IPI - Vinculado a importação
+
+I.1.2.5    IPI - Outros
+
+Para a hierarquia ilustrada acima, todas as receitas cujos códigos começam com I.1.2 (I.1.2.1 IPI - Fumo, I.1.2.2 IPI - Bebidas, I.1.2.3 IPI - Automóveis, I.1.2.4 IPI - Vinculado à importação, I.1.2.5 IPI - Outros) têm seus valores somados para formar o valor da receita I.1.2 IPI.
+
+No painel abaixo, você pode acompanhar a evolução histórica do valor de uma ou mais receitas. Para tanto, basta selecionar uma ou mais receitas no campo Rubricas. Clique ao lado de Receita Total para visualizar a lista de receitas e escolher quais você deseja explorar. Para excluir alguma receita do gráfico, clique sobre o nome e pressione a tecla delete em seu teclado.
+
+À medida que você seleciona as receitas, as curvas são exibidas na aba Gráfico. A montagem do gráfico também leva em consideração a seleção que você tenha feito sobre o tipo Valor, valores nominais ou valores indexados pelo IPCA, e sobre o tipo Período. E a aba Metadados? Veja isso e mais funções desse painel logo adiante.
+
+
+```{r}
+library(knitr)
+
+library(shiny)
+library(dygraphs)
+library(data.table)
+library(plotly)
+library(tableHTML)
+#library(future)
+#library(promises)
+#plan(multiprocess)
+load("todas_series.Rdata")
+shinyApp(
+  
+  ui = fluidPage(
+    tags$style(make_css(list('.dygraph-legend', 
+                             
+                          c('left', 'background-color'), 
+                          c('70px !important', 'opaque !important')))),
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("rubrica", "Rubricas",
+                    choices = unique(series_temporais_analise_rec$Rubrica),
+                    multiple = TRUE,            
+                    selected = series_temporais_analise_rec$Rubrica[1]
+        ),
+        radioButtons("tipoValor", "Tipo Valor",
+                     choices = c("Indexado IPCA"="2",
+                                 "Nominal"= "1")),
+        radioButtons("tipoPeriodo", "Tipo Período",
+                     choices = c("Acumulado 12 meses"="12",
+                                 "Mensal"= "m",
+                                 "Trimeste"="t",
+                                 "Ano" ="a")),
+        selectInput("data_sel", "Data Seleção",
+                    choices = unique( format(series_temporais_analise_rec$Data,"%d/%m/%Y")),
+                    multiple = FALSE,            
+                    selected = format(max(series_temporais_analise_rec$Data),"%d/%m/%Y")
+        ),
+        downloadButton("downloadData", "Download")
+        
+      ),
+      
+      mainPanel(
+        tabsetPanel(
+          tabPanel("Gráfico",dygraphOutput("Grafico_selecao_usuario"),  width = "100%"),
+          tabPanel("Metadados",DT::dataTableOutput("Visualiza_Metadados")))
+      ) 
+      
+      
+    ),
+    
+        tabsetPanel(
+          tabPanel("Relatório RTN",htmlOutput("Visualiza_Relatorio", inline = TRUE),  width = "100%"),
+          tabPanel("Gráfico de Distribuição",plotlyOutput("Grafico_Distribuicao"),  width = "100%")
+        )
+    
+    
+  ),
+  
+  server = function(input, output,session) {
+    
+
+    primeira_vez<-TRUE
+    
+    clicked <- reactive({
+      req(input$Grafico_selecao_usuario_click$x)
+    })
+    
+    observeEvent(clicked(),{
+      print(paste("clicked",as.character(clicked())))
+      s<-strptime(as.character(clicked()), "%Y-%m-%d")
+      
+      s<-format(s,"%d/%m/%Y")
+      print(paste("s depois",s))
+      updateSelectInput(session,"data_sel",selected = s)
+    })
+
+    
+    output$Grafico_selecao_usuario <- renderDygraph({
+      Grafico_selecao_usuario(series_temporais_analise_rec,
+                              input$tipoValor,
+                              input$tipoPeriodo,
+                              input$rubrica,
+                              input$rubrica,
+                              "Análise Receitas",
+                              FALSE)
+    })
+    output$Visualiza_Metadados <- DT::renderDataTable({
+      Visualiza_Metadados(input$rubrica,1)
+    })
+   
+        
+
+   output$Visualiza_Relatorio <- renderUI({
+     
+      data_sel<- strptime(input$data_sel,  "%d/%m/%Y")
+      data_sel<- format(data_sel, "%Y-%m-%d")
+      tags$iframe(style="height:1000px; width:100%; scrolling=yes",
+                  src=Busca_URL_Relatorio(data_sel))
+     
+      # promise<-future(req(input$Grafico_selecao_usuario_click$x))
+      # if (substr(as.character(promise$value),1,5)=="Error"){
+      #   data_sel<-max(series_temporais_analise_desp$Data)
+      #   tags$iframe(style="height:1000px; width:100%; scrolling=yes",
+      #             src=Busca_URL_Relatorio(data_sel))
+      # 
+      # } else
+      # {
+      #   data_sel<- strftime(as.character(promise$value), "%Y-%m-%d")
+      #   tags$iframe(style="height:1000px; width:100%; scrolling=yes",
+      #             src=Busca_URL_Relatorio(data_sel))
+      # }
+
+    })
+   
+    output$downloadData <- downloadHandler(
+      filename = function() {
+        
+        paste("Receitas-", Sys.Date(), ".csv", sep="")
+      },
+      content = function(file) {
+        Monta_Arquivo_CSV(series_temporais_analise_rec,
+                          input$tipoValor,
+                          input$tipoPeriodo,
+                          input$rubrica,
+                          FALSE,
+                          file)
+      }
+    )
+    
+    
+    output$Grafico_Distribuicao<- renderPlotly({
+      print(paste("Antes ",input$data_sel))
+      data_sel_rec<- strptime(input$data_sel,  "%d/%m/%Y")
+      data_sel_rec<- format(data_sel_rec, "%Y-%m-%d")
+
+      print(paste("Depois ",data_sel_rec))
+
+
+            
+      # if (substr(as.character(promise$value),1,5)=="Error"){
+      #   
+      #   data_sel_rec<-max(series_temporais_analise_rec$Data)
+      # } else 
+      # {
+      #   
+      #   data_sel_rec<-  strftime(as.character(req(input$Grafico_selecao_usuario_click$x)), "%Y-%m-%d")
+      # }
+
+      if (input$tipoPeriodo=="a" && substr(data_sel_rec,6,7)!="01"){
+          return()
+      }
+          
+      if (input$tipoPeriodo=="t" && !substr(data_sel_rec,6,7)%in%c("01","04","07","10")){
+          return()
+      }
+        
+      Visualizar_Grafico_Distribuicao (1, #1 - receita, 2- despesa, 3 transferências 
+                                       input$tipoValor,
+                                       input$tipoPeriodo,
+                                       input$rubrica,
+                                       FALSE,
+                                       data_sel_rec,
+                                       height = 500)
+
+    })
+
+
+
+  },
+  
+  options = list(height = 1000)
+)
+
+```
+
+
+<img style="float: left;" src="exlamation.svg">
+</br></br>*Se a aba **Relatório RTN** não apresentar conteúdo, clique [aqui](https://www.tesourotransparente.gov.br/ckan/dataset/343739de-7560-47af-8a0e-d51b363ec273/resource/05b300cf-8740-45bf-91f4-9249f1aa01bc/download/Nimjan2018.pdf) e indique que deseja abrir o arquivo mesmo com a exceção do certificado. Em seguida retorne para a aplicação*
+
+
+</br></br></br> Ao lado da aba Gráfico, a aba Metadados contem explicações detalhadas sobre cada uma das receitas selecionadas, semelhante a um dicionário para os dados selecionados.
+
+Abaixo das abas Gráfico e Metadados, existem as abas Relatório RTN e Gráfico de Distribuição. A aba Relatório RTN mostra o documento produzido pela STN, com o diagnóstico sobre a variação de receitas, de despesas e do resultado primário para um mês selecionado. Para selecionar um mês, basta clicar com o mouse sobre o ponto da curva referente ao mês desejado no gráfico. Ao fazer isso, será disponibilizado o Relatório RTN daquele mês.
+
+Essa seleção também permite entender, ao clicar na aba Gráfico de Distribuição, como a receita total se distribui entre as receitas de movimento para o mês selecionado. Além de mostrar a distribuição percentual da participação de cada receita de movimento sobre a Receita Total, destaca as receitas que foram selecionadas. Caso uma receita aglutinadora seja eleita, serão destacadas as receitas filhas que formam a receita indicada.
+
+Para facilitar a compreensão dessas funcionalidades, experimente uma consulta direcionada: Selecione I.1.3 Imposto de Renda no campo Rubricas, optando pelo Tipo Valor nominal. Observe o gráfico que é formado e veja um valor bem mais elevado do que os demais em outubro de 2016. Clique nesse ponto do gráfico. A aba Relatório RTN irá mostrar o documento referente à data escolhida. Faça uma leitura e busque entender o que gerou esse valor tão diferenciado.
+
+Em seguida, navegue até a aba Gráfico de distribuição e visualize a contribuição percentual de cada receita de movimento para a Receita Total. Além disso, perceba que estão destacadas as receitas de movimento que se aglutinam para formar I.1.3 Imposto de Renda.
+
+Ainda no painel, vale destacar o botão de download. Utilize-o para baixar, em seu ambiente computacional, os dados que foram visualizados no gráfico e fazer outras análises usando suas próprias ferramentas.
+
+
+
+
+# Despesas primárias {#DespPrimario}
+
+Toda a lógica de organização da informação das receitas primárias é válida para as despesas primárias, assim como tudo que foi explicado sobre o funcionamento do painel de exploração de receitas primárias é válido para o painel de despesas primárias. Portanto, fique à vontade para explorar informações sobre as despesas primárias.
+
+```{r}
+
+library(knitr)
+
+library(shiny)
+library(dygraphs)
+library(data.table)
+library(plotly)
+library(tableHTML)
+load("todas_series.Rdata")
+shinyApp(
+  
+  ui = fluidPage(
+    tags$style(make_css(list('.dygraph-legend', 
+                             
+                          c('left', 'background-color'), 
+                          c('70px !important', 'opaque !important')))),
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("rubrica", "Rubricas",
+                    choices = unique(series_temporais_analise_desp$Rubrica),
+                    multiple = TRUE,            
+                    selected = series_temporais_analise_desp$Rubrica[1]
+        ),
+        radioButtons("tipoValor", "Tipo Valor",
+                     choices = c("Indexado IPCA"="2",
+                                 "Nominal"= "1")),
+        radioButtons("tipoPeriodo", "Tipo Período",
+                     choices = c("Acumulado 12 meses"="12",
+                                 "Mensal"= "m",
+                                 "Trimeste"="t",
+                                 "Ano" ="a")),
+        selectInput("data_sel", "Data Seleção",
+                    choices = unique( format(series_temporais_analise_desp$Data,"%d/%m/%Y")),
+                    multiple = FALSE,            
+                    selected = format(max(series_temporais_analise_desp$Data),"%d/%m/%Y")
+        ),
+        downloadButton("downloadData", "Download")
+        
+      ),
+      
+      mainPanel(
+        tabsetPanel(
+          tabPanel("Gráfico",dygraphOutput("Grafico_selecao_usuario"),  width = "100%"),
+          tabPanel("Metadados",DT::dataTableOutput("Visualiza_Metadados")))
+      ) 
+      
+      
+    ),
+    
+        tabsetPanel(
+          tabPanel("Relatório RTN",htmlOutput("Visualiza_Relatorio", inline = TRUE),  width = "100%"),
+          tabPanel("Gráfico de Distribuição",plotlyOutput("Grafico_Distribuicao"),  width = "100%")
+        )
+    
+    
+  ),
+  
+  server = function(input, output,session) {
+    clicked <- reactive({
+      req(input$Grafico_selecao_usuario_click$x)
+    })
+    
+    observeEvent(clicked(),{
+      print(paste("clicked",as.character(clicked())))
+      s<-strptime(as.character(clicked()), "%Y-%m-%d")
+      
+      s<-format(s,"%d/%m/%Y")
+      print(paste("s depois",s))
+      updateSelectInput(session,"data_sel",selected = s)
+    })
+    
+    output$Grafico_selecao_usuario <- renderDygraph({
+      Grafico_selecao_usuario(series_temporais_analise_desp,
+                              input$tipoValor,
+                              input$tipoPeriodo,
+                              input$rubrica,
+                              input$rubrica,
+                              "Análise Despesa",
+                              FALSE)
+    })
+    output$Visualiza_Metadados <- DT::renderDataTable({
+      Visualiza_Metadados(input$rubrica,2)#2 despesa
+    })
+    output$Visualiza_Relatorio <- renderUI({
+      
+      data_sel<- strptime(input$data_sel,  "%d/%m/%Y")
+      data_sel<- format(data_sel, "%Y-%m-%d")
+      tags$iframe(style="height:1000px; width:100%; scrolling=yes",
+                  src=Busca_URL_Relatorio(data_sel))      
+      
+      # promise<-future(req(input$Grafico_selecao_usuario_click$x))
+      # if (substr(as.character(promise$value),1,5)=="Error"){
+      #   data_sel<-max(series_temporais_analise_desp$Data)
+      #   tags$iframe(style="height:1000px; width:100%; scrolling=yes", 
+      #             src=Busca_URL_Relatorio(data_sel))
+      # 
+      # } else
+      # {
+      #   data_sel<- strftime(as.character(promise$value), "%Y-%m-%d")
+      #   tags$iframe(style="height:1000px; width:100%; scrolling=yes", 
+      #             src=Busca_URL_Relatorio(data_sel))  
+      # }
+      
+    })
+    output$downloadData <- downloadHandler(
+      filename = function() {
+        
+        paste("Despesas-", Sys.Date(), ".csv", sep="")
+      },
+      content = function(file) {
+        Monta_Arquivo_CSV(series_temporais_analise_desp,
+                          input$tipoValor,
+                          input$tipoPeriodo,
+                          input$rubrica,
+                          FALSE,
+                          file)
+      }
+    )
+
+    output$Grafico_Distribuicao<- renderPlotly({
+      print(paste("Antes ",input$data_sel))
+      data_sel<- strptime(input$data_sel,  "%d/%m/%Y")
+      data_sel<- format(data_sel, "%Y-%m-%d")
+      
+      # promise<-future(req(input$Grafico_selecao_usuario_click$x))
+      # if (substr(as.character(promise$value),1,5)=="Error"){
+      #   data_sel<-max(series_temporais_analise_rec$Data)
+      # } else
+      # {
+      #   data_sel<- strftime(as.character(promise$value), "%Y-%m-%d")
+      # }
+
+      if (input$tipoPeriodo=="a" && substr(data_sel,6,7)!="01"){
+          return()
+      }
+          
+      if (input$tipoPeriodo=="t" && !substr(data_sel,6,7)%in%c("01","04","07","10")){
+          return()
+      }
+        
+      Visualizar_Grafico_Distribuicao (2, #1 - receita, 2- despesa, 3 transferências 
+                                       input$tipoValor,
+                                       input$tipoPeriodo,
+                                       input$rubrica,
+                                       FALSE,
+                                       data_sel,
+                                       height = 1000)
+
+    })
+    
+    
+    
+    
+  },
+  
+  options = list(height = 1500)
+)
+
+
+```
+
+
+
+# Análise avançada
+
+As ferramentas apresentadas até agora auxiliam no entendimento de questões importantes para o debate sobre a condução da política fiscal brasileira. Pode ser útil para uma leitura mais crítica das notícias, para o envolvimento em ações de controle social e até mesmo para iniciar novos estudos e projetos.
+
+Este aplicativo também abre espaço para análises mais avançadas. Apresenta aqui, especificamente, leituras de comportamento das tendências de variações de receitas e também análises da sazonalidade das contas de resultado do governo central.
+
+
+## Mapa de calor de tendência {#Tendencia}
+O aumento ou redução das receitas está associado a diversos aspectos, tais como variações da riqueza medida pelo PIB, calendário de recebimento de tributos, acomodação a políticas econômicas domésticas e, até mesmo, reflexo de alguma tendência econômica internacional.
+
+Para boa parte das receitas, é possível fazer análises que buscam identificar curvas de tendência a partir dos dados de suas próprias séries históricas. Esse é o trabalho que foi feito para gerar o mapa de calor apresentado logo abaixo. O gráfico traz a análise apenas para as receitas que se adequam a um trabalho de análise de tendência que possa de alguma forma ser útil em atividades de projeções. Valores muito fora do comportamento normal da série e que representam um ponto sem influência para cálculos de tendência foram substituídos por valores que foram calculados a partir de algoritmos de projeção, tendo como referência o comportamento da série histórica.
+
+Para cada receita analisada, realiza-se um cálculo que envolve a taxa de alteração da tendência entre dois meses consecutivos, ponderada pela importância relativa da receita em relação à receita total. Os valores são exibidos em função de tonalidades de cores, variando de um vermelho muito forte, para valores em extremos negativos, para um azul muito forte, para valores em extremos positivos.
+   
+O mapa ilustra apenas o comportamento das séries de receitas nos últimos doze meses.
+
+```{r fig.width=10, fig.height=8}
+num_meses<-12
+tipo_fluxo=1#1 para receita, 2 para despesa, 3 para ambos
+
+
+avalia_parc<-FALSE
+
+
+
+
+rubricas<-ExtraiRubricasRaiz(1)
+
+rubricas<-rubricas[-grep("II.",rubricas)] #Exclui as rubricas de transferência
+
+
+if (mudou){
+  series<- FiltraSeries(series_temporais_analise_rec,rubricas,12,avalia_parc=FALSE)
+
+  series<- Identifica_series_estacionarias(series)
+
+  series_tratadas<- Trata_Outlier (series)
+  save("series_tratadas", file="series_tratadas.Rdata")
+  
+} else
+{
+  load("series_tratadas.Rdata")
+}
+
+series<-series_tratadas
+ 
+
+
+serie_totalizadora <-FiltraSeries(series_temporais_analise_rec,"I. RECEITA TOTAL",12,avalia_parc)
+
+
+vazio<- TRUE
+nomes<- c(character())
+for (i in 1:NCOL(series)){
+  
+  stl<-  stl(series[,i],t.window=13, s.window="periodic", robust=TRUE)
+  if (sum(stl$time.series[,2]) >0){
+    nomes<- c(nomes,colnames(series)[i])
+
+    if (vazio){
+      vazio<-FALSE
+      decomp<-stl$time.series[,2]
+      peso <- (series[,i]/serie_totalizadora)
+    } else {
+      decomp<- cbind(decomp,stl$time.series[,2])
+      peso  <- cbind(peso,(series[,i]/serie_totalizadora))}
+      
+    }
+
+}
+    
+
+diferencial<-(diff(decomp)/decomp)*peso
+colnames(diferencial)<- nomes
+
+
+ult_valor <- data.frame(ordem_orig = c(1:NCOL(diferencial)), valor=as.numeric(diferencial[NROW(diferencial),]))
+ordem<- sort(ult_valor$valor,decreasing = TRUE)
+ult_valor <- ult_valor[order(ult_valor[2]),]
+
+diferencial<-diferencial[, c(ult_valor$ordem_orig)]
+
+
+library(reshape2)
+library(ggplot2)
+
+
+
+
+data_fim<- max(series_temporais_analise_rec$Data)
+ano_fim <- as.numeric(substr(data_fim,1,4))
+mes_fim <- as.numeric(substr(data_fim,6,7))
+
+if (mes_fim==12){
+  ano_ini <- ano_fim
+  mes_ini <-1
+}else{
+  ano_ini<- ano_fim -1
+  mes_ini<- mes_fim +1
+}
+
+diferencial <- ts(diferencial[c((NROW(diferencial)-11):NROW(diferencial)),],start = c(ano_ini,mes_ini),end = c(ano_fim,mes_fim),frequency = 12)
+
+for (i in 1:NCOL(diferencial)){
+  if (i==1){
+    df_series_trabalho<-data.frame(Rubricas=colnames(diferencial)[i],Data=as.character(as.yearmon(time(diferencial[,i])),format="%Y/%m"), Variacao= as.numeric(diferencial[,i]*100))
+    
+  } else{
+    df_series_trabalho<- rbind(df_series_trabalho,data.frame(Rubricas=colnames(diferencial)[i],Data=as.character(as.yearmon(time(diferencial[,i])),format="%Y/%m"), Variacao= as.numeric(diferencial[,i]*100)))
+
+  }
+}
+
+graph<-ggplot(df_series_trabalho, aes(df_series_trabalho$Data,df_series_trabalho$Rubricas )) +
+  geom_tile(aes(fill = Variacao), color = "white") +
+  scale_fill_gradient2(low = "red", high = "steelblue") +
+  ylab("Rubricas ") +
+  xlab("Data") +
+  theme(legend.title = element_text(size = 10),
+        legend.text = element_text(size = 12),
+        plot.title = element_text(size=16),
+        axis.title=element_text(size=14,face="bold"),
+        axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(fill = "Variacao Ponderada(%)")
+
+library(plotly)
+
+ggplotly(graph)
+
+
+```
+
+## Sazonalidade de Receita {#Sazonalidade}
+O calendário pode influenciar no fluxo das receitas. O entendimento de como esse fluxo se comporta durante um ano é importante para se analisar os dados que são divulgados. Por exemplo, a receita de Imposto de Renda de Pessoa Física tem um maior acúmulo no mês de abril, quando as declarações do imposto de renda são recolhidas. Dessa forma, é de se esperar um evidente crescimento dessa receita nos meses de abril, se comparado ao mês de março, seguido de uma forte queda já no mês de maio.
+
+O painel abaixo mostra quatro formas diferentes de se analisar a sazonalidade das receitas. Veja o caso mencionado do **I.R. - Pessoa Física** e compare os gráficos resultantes, procurando verificar a diferença que ocorre nos meses de abril em relação aos demais meses. Faça essa comparação preferencialmente com a opção de valores indexados pelo IPCA.
+
+```{r}
+
+library(shiny)
+library(dygraphs)
+library(data.table)
+library(forecast)
+library(plotly)
+library(stats)
+library(zoo)
+
+load("todas_series.Rdata")
+shinyApp(
+  
+  ui = fluidPage(
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("rubrica", "Rubricas",
+                    choices = unique(series_temporais_analise_rec$Rubrica),
+                    selected = series_temporais_analise_rec$Rubrica[1]
+        ),
+        radioButtons("tipoValor", "Tipo Valor",
+                     choices = c("Indexado IPCA"="2",
+                                 "Nominal"= "1")),
+        downloadButton("downloadData", "Download")
+        
+      ),
+      
+      mainPanel(
+        tabsetPanel(
+          tabPanel("Gráfico Coordenadas Polares",plotOutput("Grafico_Polar")),
+          tabPanel("Gráfico Coordenadas Cartesianas",plotlyOutput("Grafico_Cartesiano")),
+          tabPanel("Gráfico Sub-Conjuntos de séries",plotlyOutput("Grafico_Sub_Series")),
+          tabPanel("Gráfico Mapa de Calor", plotlyOutput("Mapa_Calor_sazonalidade"))
+        )
+      )
+    )
+  ),
+  
+  server = function(input, output) {
+    
+    output$Grafico_Polar <- renderPlot({
+      serie_sazonal<-Trata_Selecao_usuario(series_temporais_analise_rec,
+                                           input$tipoValor,
+                                           "m",
+                                           input$rubrica,
+                                           FALSE)
+      
+      ggseasonplot(serie_sazonal, polar=TRUE) +
+        ylab("R$ milhões") +
+        ggtitle(paste0("Gráfico de sazonalidade - ",input$rubrica))
+      
+    })
+    output$Grafico_Cartesiano <- renderPlotly({
+      serie_sazonal<-Trata_Selecao_usuario(series_temporais_analise_rec,
+                                           input$tipoValor,
+                                           "m",
+                                           input$rubrica,
+                                           FALSE)
+      
+      
+      graph<-ggseasonplot(serie_sazonal, year.labels=TRUE, year.labels.left=TRUE) +
+        ylab("R$ milhões") +
+        ggtitle(paste0("Gráfico de sazonalidade - ",input$rubrica))
+      ggplotly(graph)
+      
+    })
+    output$Grafico_Sub_Series <- renderPlotly({
+      serie_sazonal<-Trata_Selecao_usuario(series_temporais_analise_rec,
+                                           input$tipoValor,
+                                           "m",
+                                           input$rubrica,
+                                           FALSE)
+      
+      graph<-ggsubseriesplot(serie_sazonal) +
+        ylab("$ million") +
+        ggtitle(paste0("Gráfico de sazonalidade - ",input$rubrica))
+      
+  
+      ggplotly(graph)
+      
+      
+    })
+    output$Mapa_Calor_sazonalidade <- renderPlotly({
+      serie_sazonal<-Trata_Selecao_usuario(series_temporais_analise_rec,
+                                           input$tipoValor,
+                                           "m",
+                                           input$rubrica,
+                                           FALSE)
+      df_series_trabalho<- data.frame(Rubrica=input$rubrica,
+                                      Data=as.Date(time(serie_sazonal)), Valor = as.numeric(serie_sazonal))
+      
+      graph<-ggplot(df_series_trabalho, aes(substr(as.character(df_series_trabalho$Data),6,7),substr(as.character(df_series_trabalho$Data),1,4))) +
+        geom_tile(aes(fill = Valor), color = "white") +
+        scale_fill_gradient2(low = "#6FC8E2", high = "#7A9CBD") +
+        ylab("Ano ") +
+        xlab("Mês") +
+        theme(legend.title = element_text(size = 10),
+              legend.text = element_text(size = 12),
+              plot.title = element_text(size=16),
+              axis.title=element_text(size=14,face="bold"),
+              axis.text.x = element_text(angle = 90, hjust = 1)) +
+        labs(fill = "Valor em R$ milhões") 
+      
+      
+      ggplotly(graph)
+      
+      
+    })
+    output$downloadData <- downloadHandler(
+      filename = function() {
+        
+        paste("Receitas-", Sys.Date(), ".csv", sep="")
+      },
+      content = function(file) {
+        Monta_Arquivo_CSV(series_temporais_analise_rec,
+                          input$tipoValor,
+                          "m",
+                          input$rubrica,
+                          FALSE,
+                          file)
+      }
+    )
+    
+    
+  },
+  
+  options = list(height = 500)
+)
+
+
+```
+
+## Sazonalidade de Despesa
+Tal como ocorre com as receitas, as despesas também apresentam suas séries com comportamentos sazonais. Um destaque bem evidente se dá com o item **Pessoal e Encargos Sociais** , que apresenta valores diferenciados nos meses de julho, janeiro e dezembro, em decorrência da concentração das férias dos servidores públicos nesses meses e pagamento de 13º salário. Experimente essa e outras análises no painel abaixo.
+
+```{r}
+
+library(shiny)
+library(dygraphs)
+library(data.table)
+library(forecast)
+library(plotly)
+library(stats)
+library(zoo)
+
+load("todas_series.Rdata")
+shinyApp(
+  
+  ui = fluidPage(
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("rubrica", "Rubricas",
+                    choices = unique(series_temporais_analise_desp$Rubrica),
+                    selected = series_temporais_analise_rec$Rubrica[1]
+        ),
+        radioButtons("tipoValor", "Tipo Valor",
+                     choices = c("Indexado IPCA"="2",
+                                 "Nominal"= "1")),
+        downloadButton("downloadData", "Download")
+        
+      ),
+      
+      mainPanel(
+        tabsetPanel(
+          tabPanel("Gráfico Coordenadas Polares",plotOutput("Grafico_Polar")),
+          tabPanel("Gráfico Coordenadas Cartesianas",plotlyOutput("Grafico_Cartesiano")),
+          tabPanel("Gráfico Sub-Conjuntos de séries",plotlyOutput("Grafico_Sub_Series")),
+          tabPanel("Gráfico Mapa de Calor", plotlyOutput("Mapa_Calor_sazonalidade"))
+        )
+      )
+    )
+  ),
+  
+  server = function(input, output) {
+    
+    output$Grafico_Polar <- renderPlot({
+      serie_sazonal<-Trata_Selecao_usuario(series_temporais_analise_desp,
+                                           input$tipoValor,
+                                           "m",
+                                           input$rubrica,
+                                           FALSE)
+      
+      ggseasonplot(serie_sazonal, polar=TRUE) +
+        ylab("R$ milhões") +
+        ggtitle(paste0("Gráfico de sazonalidade - ",input$rubrica))
+      
+    })
+    output$Grafico_Cartesiano <- renderPlotly({
+      serie_sazonal<-Trata_Selecao_usuario(series_temporais_analise_desp,
+                                           input$tipoValor,
+                                           "m",
+                                           input$rubrica,
+                                           FALSE)
+      
+      
+      graph<-ggseasonplot(serie_sazonal, year.labels=TRUE, year.labels.left=TRUE) +
+        ylab("R$ milhões") +
+        ggtitle(paste0("Gráfico de sazonalidade - ",input$rubrica))
+      ggplotly(graph)
+      
+    })
+    output$Grafico_Sub_Series <- renderPlotly({
+      serie_sazonal<-Trata_Selecao_usuario(series_temporais_analise_desp,
+                                           input$tipoValor,
+                                           "m",
+                                           input$rubrica,
+                                           FALSE)
+      
+      graph<-ggsubseriesplot(serie_sazonal) +
+        ylab("$ million") +
+        ggtitle(paste0("Gráfico de sazonalidade - ",input$rubrica))
+      
+  
+      ggplotly(graph)
+      
+      
+    })
+    output$Mapa_Calor_sazonalidade <- renderPlotly({
+      serie_sazonal<-Trata_Selecao_usuario(series_temporais_analise_desp,
+                                           input$tipoValor,
+                                           "m",
+                                           input$rubrica,
+                                           FALSE)
+      df_series_trabalho<- data.frame(Rubrica=input$rubrica,
+                                      Data=as.Date(time(serie_sazonal)), Valor = as.numeric(serie_sazonal))
+      
+      graph<-ggplot(df_series_trabalho, aes(substr(as.character(df_series_trabalho$Data),6,7),substr(as.character(df_series_trabalho$Data),1,4))) +
+        geom_tile(aes(fill = Valor), color = "white") +
+        scale_fill_gradient2(low = "#6FC8E2", high = "#7A9CBD") +
+        ylab("Ano ") +
+        xlab("Mês") +
+        theme(legend.title = element_text(size = 10),
+              legend.text = element_text(size = 12),
+              plot.title = element_text(size=16),
+              axis.title=element_text(size=14,face="bold"),
+              axis.text.x = element_text(angle = 90, hjust = 1)) +
+        labs(fill = "Valor em R$ milhões") 
+      
+      
+      ggplotly(graph)
+      
+      
+    })
+    output$downloadData <- downloadHandler(
+      filename = function() {
+        
+        paste("Despesa-", Sys.Date(), ".csv", sep="")
+      },
+      content = function(file) {
+        Monta_Arquivo_CSV(series_temporais_analise_desp,
+                          input$tipoValor,
+                          "m",
+                          input$rubrica,
+                          FALSE,
+                          file)
+      }
+    )
+    
+    
+  },
+  
+  options = list(height = 500)
+)
+
+
+```
+
+# Gamificação
+
+Agora que há um maior acúmulo de aprendizagem, que tal juntar o que foi aprendido aqui com a bagagem de conhecimentos anteriores? Propomos dois desafios. 
+
+O primeiro está associado à capacidade de desenvolver raciocínios que possam evoluir para previsões sobre os próximos valores de uma determinada série que compõe o resultado primário. Esse vai ser o Desafio Nostradamus.
+
+O segundo desafio é um quis, onde você busca identificar qual série, escolhida de forma aleatória, está representada no gráfico.
+ 
+
+## Desafio Nostradamus
+</BR>
+![](220px-Nostradamus_Centuries_1568.jpg)
+</BR>
+Desafie-se a prever o próximo valor de uma série do RTN. Participe do concurso. Em breve divulgaremos aqui as regras desse desafio.
+
+
+## Quiz RTN - Receita {#Gamificacao}
+
+Qual série de receita está representada no gráfico abaixo? Analise o gráfico na aba **Gráfico Pergunta** e selecione a série de receita que você considera a correta. Compare a imagem exibida na aba **Gráfico Resposta** com o gráfico da pergunta. Acertou? Veja na aba **Metadados Pergunta** mais informações sobre a série que lhe desafiou. Se quiser jogar novamente, pressione o botão **Nova Rodada**.
+
+```{r}
+
+library(shiny)
+library(dygraphs)
+#library(future)
+library(tableHTML)
+valor_inicial <- sample(1:length(rubricas),1)
+
+ui <- fluidPage(
+  tags$style(make_css(list('.dygraph-legend', 
+                             
+                          c('left', 'background-color'), 
+                          c('70px !important', 'opaque !important')))),
+
+  sidebarLayout(
+    sidebarPanel(
+      actionButton("Go", "Nova Rodada"),
+      selectInput("rubrica", "Faça sua escolha",
+                  choices = unique(series_temporais_analise_rec$Rubrica))
+      
+    ),
+    mainPanel(
+      
+      tabsetPanel(
+        tabPanel("Gráfico Pergunta",dygraphOutput("Grafico_Quiz"),  width = "100%"),
+        tabPanel("Metadados Pergunta",DT::dataTableOutput("Metadados_Pergunta"))),
+      
+      
+      tabsetPanel(
+        tabPanel("Gráfico Resposta",dygraphOutput("Grafico_selecao_usuario"),  width = "100%"),
+        tabPanel("Metadados Resposta",DT::dataTableOutput("Metadados_reposta")))
+      
+      
+    )
+  )
+)
+server <- function(input, output) {
+  output$Grafico_Quiz <- renderDygraph({
+    promise<-randomVals()
+    print(paste("promise", promise))
+    if (is.na(promise)){
+      serie<-FiltraSeries (series_temporais_analise_rec, series_temporais_analise_rec$Rubrica[valor_inicial], 12,FALSE)
+      GraficoSeries (serie, series_temporais_analise_rec$Rubrica[valor_inicial],series_temporais_analise_rec$Rubrica[valor_inicial],  "")
+      
+    } else
+    {
+      serie<-FiltraSeries (series_temporais_analise_rec, series_temporais_analise_rec$Rubrica[randomVals()], 12,FALSE)
+      GraficoSeries (serie, series_temporais_analise_rec$Rubrica[randomVals()],series_temporais_analise_rec$Rubrica[randomVals()],  "")
+      
+    }  
+    
+    
+    
+  })
+  output$Metadados_Pergunta <- DT::renderDataTable({
+    promise<-randomVals()
+    if (is.na(promise)){
+      Visualiza_Metadados(series_temporais_analise_rec$Rubrica[valor_inicial],1)#1 receita
+    } else{
+      Visualiza_Metadados(series_temporais_analise_rec$Rubrica[randomVals()],1)#1 receita
+    }
+  })
+  
+  
+  output$Grafico_selecao_usuario <- renderDygraph({
+    
+    serie<-FiltraSeries (series_temporais_analise_rec, input$rubrica, 12, FALSE)
+    GraficoSeries (serie, input$rubrica,input$rubrica,  "")
+  })
+  output$Metadados_reposta <- DT::renderDataTable({
+    Visualiza_Metadados(input$rubrica,1)#1 receita
+  })
+  randomVals <- eventReactive(input$Go, ignoreNULL = FALSE, {
+    rubricas <- unique(series_temporais_analise_rec$Rubrica)
+    val<-sample(1:length(rubricas),1)
+    val
+  })
+  
+}
+shinyApp(ui = ui, server = server,   options = list(height = 1000)) 
+
+```
+
+## Quiz RTN - Despesa
+
+Afinal que série de despesa está representada no gráfico abaixo?
+```{r}
+
+
+library(shiny)
+library(dygraphs)
+#library(future)
+rubricas <- unique(series_temporais_analise_desp$Rubrica)
+valor_inicial <- sample(1:length(rubricas),1)
+
+ui <- fluidPage(
+  tags$style(make_css(list('.dygraph-legend', 
+                           
+                           c('left', 'background-color'), 
+                           c('70px !important', 'opaque !important')))),
+  
+  sidebarLayout(
+    sidebarPanel(
+      actionButton("Go", "Nova Rodada"),
+      selectInput("rubrica", "Faça sua escolha",
+                  choices = unique(series_temporais_analise_desp$Rubrica))
+      
+    ),
+    mainPanel(
+      
+      tabsetPanel(
+        tabPanel("Gráfico Pergunta",dygraphOutput("Grafico_Quiz"),  width = "100%"),
+        tabPanel("Metadados Pergunta",DT::dataTableOutput("Metadados_Pergunta"))),
+      
+      
+      tabsetPanel(
+        tabPanel("Gráfico Resposta",dygraphOutput("Grafico_selecao_usuario"),  width = "100%"),
+        tabPanel("Metadados Resposta",DT::dataTableOutput("Metadados_reposta")))
+      
+      
+    )
+  )
+)
+server <- function(input, output) {
+  output$Grafico_Quiz <- renderDygraph({
+    promise<-randomVals()
+    if (is.na(promise)){
+      serie<-FiltraSeries (series_temporais_analise_desp, series_temporais_analise_desp$Rubrica[valor_inicial], 12,FALSE)
+      GraficoSeries (serie, series_temporais_analise_desp$Rubrica[valor_inicial],series_temporais_analise_desp$Rubrica[valor_inicial],  "")
+      
+    } else
+    {
+      serie<-FiltraSeries (series_temporais_analise_desp, series_temporais_analise_desp$Rubrica[randomVals()], 12,FALSE)
+      GraficoSeries (serie, series_temporais_analise_desp$Rubrica[randomVals()],series_temporais_analise_desp$Rubrica[randomVals()],  "")
+      
+    }  
+    
+    
+    
+  })
+  output$Metadados_Pergunta <- DT::renderDataTable({
+    promise<-randomVals()
+    if (is.na(promise)){
+      Visualiza_Metadados(series_temporais_analise_desp$Rubrica[valor_inicial],2)#2 despesa
+    } else{
+      Visualiza_Metadados(series_temporais_analise_desp$Rubrica[randomVals()],2)#2 despesa
+    }
+    
+    
+  })
+  
+  
+  output$Grafico_selecao_usuario <- renderDygraph({
+    
+    serie<-FiltraSeries (series_temporais_analise_desp, input$rubrica, 12, FALSE)
+    GraficoSeries (serie, input$rubrica,input$rubrica,  "")
+  })
+  output$Metadados_reposta <- DT::renderDataTable({
+    Visualiza_Metadados(input$rubrica,2)#2 despesa
+  })
+  randomVals <- eventReactive(input$Go,ignoreNULL = FALSE,{
+    rubricas <- unique(series_temporais_analise_desp$Rubrica)
+    val<-sample(1:length(rubricas),1)
+    val
+  })
+  
+}
+shinyApp(ui = ui, server = server, options = list(height = 1000)) 
+
+
+```
+
+# Dados abertos e transparência
+
+Este aplicativo além de trazer uma abordagem evolutiva de informações sobre o Resultado do Tesouro Nacional, é também uma experiência de transparência, principalmente pelo consumo de dados abertos e abertura de código.
+
+Em relação a dados abertos, os dados consumidos provêm todos do <a href="http://www.tesourotransparente.gov.br/ckan/dataset" target="_blank">portal de dados abertos do Tesouro Transparente</a>. As consultas são feitas sobre dois conjuntos de dados: <a href="http://www.tesourotransparente.gov.br/ckan/dataset/resultado-do-tesouro-nacional"  target="_blank">Resultado Fiscal do Governo Central: Série histórica</a> e <a href="http://www.tesourotransparente.gov.br/ckan/dataset/relatorios-do-rtn"  target="_blank">Relatórios do RTN</a>. Do primeiro conjunto de dados são consumidos os recursos **Resultado do Tesouro Nacional série Histórica Mensal** e **Dicionário de Conceitos e Metodologia de Cálculo**. Já em relação ao segundo conjunto de dados o aplicativo consome dinamicamente todos os relatórios do RTN. Esse consumo de dados é facilitado pelo fato dos dados estarem num repositório construído numa abordagem direcionada a dados abertos, a plataforma CKAN, que, entre outras facilidades, permite a localização dinâmica dos recursos através de uma abordagem de programação específica, o uso das chamadas APIs.
+
+Em relação a abertura de código, optou-se por tornar disponível em toda a aplicação o botão code que permite ao usuário do aplicativo ler como o código foi escrito para gerar cada um dos gráficos e painéis.
+
+Essa abordagem de transparência mostra como tornar viável uma ressignificação possível dos dados abertos disponibilizados à sociedade. A ressignificação, neste caso, é a transformação de uma planilha com várias abas em: 
+
+* Gráficos que transmitem conteúdos relacionados a aprendizagem; 
+* Exploração de recursos razoavelmente avançados de estatística e econometria 
+* Participação social 
+* Interação lúdica com o usuário. 
+
+No conjunto há uma aposta de incremento de um capital técnico do público consumidor não só do ponto de vista das questões fiscais, como também de disciplinas como programação, análise de dados, visualização de dados, estatística e econometria.

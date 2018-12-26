@@ -1,0 +1,11 @@
+"0","library(estatisticasrtn)
+"
+"2","
+Attaching package: ‘estatisticasrtn’
+
+"
+"2","The following objects are masked _by_ ‘.GlobalEnv’:
+
+    GraficoSeries, Trata_Outlier
+
+"

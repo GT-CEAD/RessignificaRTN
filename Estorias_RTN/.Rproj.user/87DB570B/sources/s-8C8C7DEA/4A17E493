@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1543239527083.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "4A17E493",
+    "lastKnownWriteTime" : 1543496234,
+    "last_content_update" : -2147483648,
+    "path" : "//cruzeiro/SHINY/Grafico_RTN/grafico_RTN.Rmd",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "127,56",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 26,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

@@ -1,0 +1,13 @@
+name: Ressignifica_RTN
+title: Ressignifica_RTN
+username:
+account: fabdev
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 317324
+bundleId: 1745916
+url: https://fabdev.shinyapps.io/Ressignifica_RTN/
+when: 1544110341.48625
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app.R

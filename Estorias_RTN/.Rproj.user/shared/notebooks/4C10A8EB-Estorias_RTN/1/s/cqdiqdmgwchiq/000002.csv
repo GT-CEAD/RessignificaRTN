@@ -1,0 +1,25 @@
+"0","library(reshape2)
+library(ggplot2)
+data_fim<- max(series_temporais_analise_rec$Data)
+ano_fim <- as.numeric(substr(data_fim,1,4))
+mes_fim <- as.numeric(substr(data_fim,6,7))
+if (mes_fim==12){
+  ano_ini <- ano_fim
+  mes_ini <-1
+}else{
+  ano_ini<- ano_fim -1
+  mes_ini<- mes_fim +1
+}
+diferencial <- ts(diferencial[c((NROW(diferencial)-11):NROW(diferencial)),],start = c(ano_ini,mes_ini),end = c(ano_fim,mes_fim),frequency = 12)
+for (i in 1:NCOL(diferencial)){
+  if (i==1){
+    df_series_trabalho<-data.frame(Rubricas=colnames(diferencial)[i],Data=as.character(as.yearmon(time(diferencial[,i])),format=""%Y/%m""), Variacao= as.numeric(diferencial[,i]*100))
+    
+  } else{
+    df_series_trabalho<- rbind(df_series_trabalho,data.frame(Rubricas=colnames(diferencial)[i],Data=as.character(as.yearmon(time(diferencial[,i])),format=""%Y/%m""), Variacao= as.numeric(diferencial[,i]*100)))
+  }
+}
+"
+"2","Error in as.yearmon(time(diferencial[, i])) : 
+  could not find function ""as.yearmon""
+"

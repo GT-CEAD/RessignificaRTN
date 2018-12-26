@@ -1,0 +1,21 @@
+"0","knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)"
+"2","Warning messages:
+"
+"2","1: "
+"2","In res[i] <- withCallingHandlers(if (tangle) process_tangle(group) else process_group(group),  :"
+"2","
+ "
+"2"," number of items to replace is not a multiple of replacement length
+"
+"2","2: "
+"2","In res[i] <- withCallingHandlers(if (tangle) process_tangle(group) else process_group(group),  :"
+"2","
+ "
+"2"," number of items to replace is not a multiple of replacement length
+"
+"2","3: "
+"2","In res[i] <- withCallingHandlers(if (tangle) process_tangle(group) else process_group(group),  :"
+"2","
+ "
+"2"," number of items to replace is not a multiple of replacement length
+"

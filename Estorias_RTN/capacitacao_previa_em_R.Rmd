@@ -1,0 +1,186 @@
+---
+title: "Hello World of R Wonders"
+output:
+  html_document: 
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+
+boxplot(cars$speed)
+boxplot(cars$dist)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Capacitação prévia em R 
+
+Os dois objetos trabalhados acima são os chamados dataframes. São estruturas em forma de tabela.
+Eles estão presentes numa library que já vem na instalação do R. Trata-se da Library datasets.
+Todos os dados que estão em memória podem ser vistos através da guia enviroment como também através de linha de comando tanto nos editores de script como também no console. É interessante explorar a guia enviroment, incluindo as bibliotecas disponíveis.
+
+
+Abaixo os códigos para visualização das colunas de cada uma dos dataframes já trabalhados até aqui. Para incluir códigos no RMarkdown basta incluir uma linha de código R começando com os caracteres ```{r} ou pressionar o botão insert e escolher R.
+
+```{r}
+#Os comentários em R começam com esse símbolo#
+cars$speed #acessando os valores da coluna speed do dataframe cars
+cars$dist #acessando os valores da coluna dist do cataframe cars
+pressure$temperature #acessando os valores da colna temperature do dataframe pressure
+pressure$pressure #acessando os valores da colna temperature do dataframe pressure
+
+```
+
+Pela facilidade de manipulação de dados, o dataframe e o seu irmão tibble são portanto os principais objetos a serem trabalhados quando se usa análise de dados em R. 
+
+
+#Engenharia reversa do Ressignficando o RTN
+
+
+Vamos agora à replicação de alguns elementos presentes na aplicação Resssignificando o RTN.
+
+Para isso serão trabalhados os seguintes tópicos:
+
+- atribuição de valores
+```{r}
+ultima_carga<-"" #atribuição de string vazia a uma variável. Comando de atribuição é o <-
+```
+
+
+- consumo de dados previamente trabalhados
+```{r}
+load("todas_series.Rdata") #carrega todos os objetos que estão no arquivo Rdata
+```
+
+
+- consumo de dados de api
+```{r}
+library(ckanr)
+tb_ckan<-resource_show(id="527ccdb1-3059-42f3-bf23-b5e3ab4c6dc6",url="http://apickan.tesouro.gov.br/ckan") #consumo de dados da api do Ckan que contém os dados do tesouro transparente
+
+fab<-resource_show(id="527ccdb1-3059-42f3-bf23-b5e3ab4c6dc6",url="http://www.tesourotransparente.gov.br/ckan") #consumo de dados da api do Ckan que contém os dados do tesouro transparente
+
+```
+
+
+- objeto tipo lista
+```{r}
+mudou<- (tb_ckan$last_modified!=ultima_carga)
+
+```
+
+
+- teste lógico
+
+- manipuação de string (gsub e paste) 
+
+<a href="https://cran.r-project.org/web/packages/stringr/vignettes/stringr.html" target="_blank">- sugestão para explorar autonomamente a biblioteca string r</a>
+
+- manipulação de arquivos 
+
+- leitura de arquivo xlsx
+
+- nomes de colunas em dataframe
+
+- funções gather e split
+
+- conversão de tipos (as.numeri, as.Date)
+
+- Função gather/split
+
+
+```{r}
+library(readxl)
+#library(XLConnect)
+library(tidyr)
+#library(RCurl)
+
+if (mudou){ #teste lógico
+  ultima_carga<- tb_ckan$last_modified
+  URL_add <- tb_ckan$url
+  
+  URL_add<-gsub("https://www.tesourotransparente.gov.br","https://apickan.tesouro.gov.br",URL_add) #substituição de strings
+  
+  paste0("O","fernando","é","lindo")
+  tmp = paste(getwd(),"temp.xlsx") #concatenação de strings
+  
+  #extra: verificar também substring
+  #extra: explorar também a biblioteca stringr
+  
+  
+  tmp = tempfile(fileext = ".xlsx") #cria um arquivo temporário em uma pasta temporária no formato xlsx
+  
+  
+  download.file(URL_add,mode = "wb", destfile = tmp) #função para download de arquivo
+  
+  #############Verificar comentário abaixo imporante
+  #rtn_geral <- read.xlsx(tmp, sheetIndex=2, rowIndex = c(5:79)) #não usar essa função por estar associada a uma bibiloteca com dependência do java
+  
+  rtn_geral <- read_xlsx(tmp,sheet = 2,skip = 4,n_max = 74) 
+  # a função read_xlsx permite várias combinações de parâmetro para utilizar somente os dados que interessam
+  #observar que o resultado da função já é um dataframe
+  
+  rtn_receita<- read_xlsx(tmp,sheet = 4,skip = 4,n_max = 48)
+  rtn_despesa<- read_xlsx(tmp,sheet = 8,skip = 4,n_max = 88)
+  
+  deflator_IPCA <- read_xlsx(tmp,sheet = 5,skip = 54,n_max = 1, col_names = FALSE) #observar nesse caso que não se utilizou a primeira linha da tabela como nome de coluna
+  
+  names(deflator_IPCA)<-names(rtn_receita) #identificação e alteração do nome das colunas de um datafrme
+  
+  
+
+  names(rtn_geral)[1]<-"Rubrica" #alteração de apenas um nome de coluna. Aqui se percebe como se trabalha com vetores
+  
+  series_temporais_analise<-gather(rtn_geral,Data, Valor,-Rubrica) #função para pivotar um data.frame é simétrico ao split
+  
+  #series_temporais_analise$Data<-gsub("X","",series_temporais_analise$Data)
+  
+  series_temporais_analise$Data<-as.Date(as.numeric(series_temporais_analise$Data), origin="1899-12-30") #faz duas conversões de tipos. primeiro de string para numérico e depois de numérico para data. O argumento origem indica a partir de que data deve-se contar o número de dias que o valor convertido faz referência
+  
+  series_temporais_analise$Valor <-as.numeric(series_temporais_analise$Valor)
+  
+  
+  series_temporais_analise$Valor[is.na(series_temporais_analise$Valor)]<-0 #is.na procura valores de dataframe que não estão povoados (missings no vocabulário da estatística)
+  
+  rm(rtn_geral) #remove objeto da memória
+}  
+```
+
+
+- Manipulação de vetores e dataframes
+
+- Filtro usando notação RBase
+
+- Visualização de gráficos para verificação do efeito do filtro (trabalhando com arquivo de script diferente para testes)
+```{r}
+rubrica<- "I. RECEITA TOTAL"
+ano <- c("2016","2017","2018")
+df_plot<- series_temporais_analise[series_temporais_analise$Rubrica == rubrica & substr(series_temporais_analise$Data,1,4)%in%ano ,c(2,3)] #filtro usando duas condições
+
+plot(df_plot, type="l") #plotar um gráfico simples usando os recursos do RBase
+
+```
+
+
+
+
+

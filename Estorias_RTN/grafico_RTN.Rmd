@@ -1,0 +1,158 @@
+---
+output: 
+  html_document:
+    highlight: null
+    css: style.css
+    runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r Funcoes}
+source("Funcoes_analise_rtn.R")
+
+```
+
+```{r Carga_inicial, warning = FALSE, message = FALSE}
+library(readxl)
+#library(XLConnect)
+library(tidyr)
+library(RCurl)
+library(ckanr)
+#library(RUnit)
+
+ultima_carga<-""
+
+load("todas_series.Rdata")
+
+#tb_ckan<-resource_show(id="527ccdb1-3059-42f3-bf23-b5e3ab4c6dc6",url="http://www.tesourotransparente.gov.br/ckan")
+
+#tb_ckan<-resource_show(id="527ccdb1-3059-42f3-bf23-b5e3ab4c6dc6",url="https://apickan.tesouro.gov.br/ckan")
+
+
+#mudou<- (tb_ckan$last_modified!=ultima_carga)
+
+mudou<-FALSE
+
+
+if (mudou){
+  ultima_carga<- tb_ckan$last_modified
+  URL_add <- tb_ckan$url
+  
+  URL_add<-gsub("https://www.tesourotransparente.gov.br","https://apickan.tesouro.gov.br",URL_add)
+  
+  tmp = paste(getwd(),"temp.xlsx")
+  
+  
+  tmp = tempfile(fileext = ".xlsx")
+  
+  
+  
+  download.file(URL_add,mode = "wb", destfile = tmp)
+  #rtn_geral <- read.xlsx(tmp, sheetIndex=2, rowIndex = c(5:79))
+  rtn_geral <- read_xlsx(tmp,sheet = 2,skip = 4,n_max = 74)
+  #rtn_receita<-read.xlsx(tmp, sheetIndex=4, rowIndex = c(5:53))
+  rtn_receita<- read_xlsx(tmp,sheet = 4,skip = 4,n_max = 48)
+  #rtn_despesa<- read.xlsx(tmp, sheetIndex=8, rowIndex = c(5:92))
+  rtn_despesa<- read_xlsx(tmp,sheet = 8,skip = 4,n_max = 88)
+  #deflator_IPCA <- read.xlsx(tmp,sheetIndex=5, rowIndex = c(55:55),header=FALSE) #vai ser sempre a última linha de receita + 2
+  deflator_IPCA <- read_xlsx(tmp,sheet = 5,skip = 54,n_max = 1, col_names = FALSE)
+  names(deflator_IPCA)<-names(rtn_receita)
+  
+  
+
+  names(rtn_geral)[1]<-"Rubrica"
+  series_temporais_analise<-gather(rtn_geral,Data, Valor,-Rubrica)
+  #series_temporais_analise$Data<-gsub("X","",series_temporais_analise$Data)
+  series_temporais_analise$Data<-as.Date(as.numeric(series_temporais_analise$Data), origin="1899-12-30")
+  series_temporais_analise$Valor <-as.numeric(series_temporais_analise$Valor)
+  series_temporais_analise$Valor[is.na(series_temporais_analise$Valor)]<-0
+  rm(rtn_geral)
+  
+  
+  names(rtn_receita)[1]<-"Rubrica"
+  series_temporais_analise_rec<-gather(rtn_receita,Data, Valor,-Rubrica)
+  #series_temporais_analise_rec$Data<-gsub("X","",series_temporais_analise_rec$Data)
+  series_temporais_analise_rec$Data<-as.Date(as.numeric(series_temporais_analise_rec$Data), origin="1899-12-30")
+  series_temporais_analise_rec$Valor <-as.numeric(series_temporais_analise_rec$Valor)
+  series_temporais_analise_rec$Valor[is.na(series_temporais_analise_rec$Valor)]<-0
+  rm(rtn_receita)
+  
+  names(rtn_despesa)[1]<-"Rubrica"
+  series_temporais_analise_desp<-gather(rtn_despesa,Data, Valor,-Rubrica)
+  #series_temporais_analise_desp$Data<-gsub("X","",series_temporais_analise_desp$Data)
+  series_temporais_analise_desp$Data<-as.Date(as.numeric(series_temporais_analise_desp$Data), origin="1899-12-30")
+  series_temporais_analise_desp$Valor <-as.numeric(series_temporais_analise_desp$Valor)
+  series_temporais_analise_desp$Valor[is.na(series_temporais_analise_desp$Valor)]<-0
+  rm(rtn_despesa)
+  
+  names(deflator_IPCA)[1]<-"Rubrica"
+  series_temporais_analise_IPCA<-gather(deflator_IPCA,Data, Valor,-Rubrica)
+  #series_temporais_analise_IPCA$Data<-gsub("X","",series_temporais_analise_IPCA$Data)
+  series_temporais_analise_IPCA$Data<-as.Date(as.numeric(series_temporais_analise_IPCA$Data), origin="1899-12-30")
+  series_temporais_analise_IPCA$Valor <-as.numeric(series_temporais_analise_IPCA$Valor)
+  rm(deflator_IPCA)
+  
+  URL_add<-"https://apickan.tesouro.gov.br/ckan/dataset/ab56485b-9c40-4efb-8563-9ce3e1973c4b/resource/7a535375-4e15-4ebb-bb49-25daf05330bb/download/Metadados---NFGC.xlsx"
+  
+  tmp = paste(getwd(),"temp.xlsx")
+  
+  
+  tmp = tempfile(fileext = ".xlsx")
+  
+  download.file(URL_add,mode = "wb", destfile = tmp)
+
+
+  #metadados_rec<- read.xlsx(tmp, sheetIndex=4, startRow = 5, colIndex = c(2,3))
+  metadados_rec<-read_xlsx(tmp,sheet = 4,skip =4)
+  metadados_rec <- metadados_rec[,c(2,3)]
+  #metadados_desp<-read.xlsx(tmp, sheetIndex=8, startRow = 5, colIndex = c(1,2))
+  metadados_desp<-read_xlsx(tmp,sheet = 8,skip =4)
+  metadados_desp <- metadados_desp[,c(1,2)]
+  
+  names(metadados_rec)<-c("Rubrica","Descricao")
+  names(metadados_desp) <- names(metadados_rec)
+
+  
+  
+  
+  save(list = c("metadados_rec","metadados_desp","series_temporais_analise_IPCA", "series_temporais_analise_desp","series_temporais_analise_rec","series_temporais_analise","ultima_carga" ),file = "todas_series.Rdata")
+  rm(series_temporais_analise)
+  
+
+}
+
+
+```
+
+```{r}
+library(shiny)
+library(dygraphs)
+shinyApp(
+  
+  ui = fluidPage(
+    mainPanel(
+      dygraphOutput("Grafico_selecao_usuario")
+    )
+
+  ),
+  
+  server = function(input, output) {
+    output$Grafico_selecao_usuario <- renderDygraph({
+      Grafico_selecao_usuario(series_temporais_analise,
+                    "1",
+                    "12",
+                    "VI. PRIM",
+                    "VI. PRIM",
+                    "",
+                    TRUE,
+                    altura = 260
+                    
+                    )
+    })
+  }
+)
+
+```

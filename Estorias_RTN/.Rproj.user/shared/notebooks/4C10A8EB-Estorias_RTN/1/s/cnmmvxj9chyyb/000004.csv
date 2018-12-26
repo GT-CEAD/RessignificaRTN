@@ -1,0 +1,12 @@
+"0","dygraph(series,main = ""Resultado Primário - Governo central"") %>%
+  dyRangeSelector() %>%
+  dyAxis(name= ""y"",valueRange = c(y_min,y_max)) %>%
+  dySeries(label = ""RP"") %>%
+  dySeries(label = ""RL"") %>%
+  dySeries(label = ""DT"") %>%
+  dySeries(label = ""FSB"") %>%
+  dyLegend(show = ""always"", hideOnMouseOut = TRUE, width = 400)%>%
+  dyOptions( drawGrid = FALSE)%>%
+  dyHighlight(highlightCircleSize = 5)
+"
+"0","  #connectSeparatedPoints = TRUE,"

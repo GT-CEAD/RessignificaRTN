@@ -1,0 +1,3 @@
+library(plumber)
+r <- plumb("API_Grandes_Numeros_STN.R")  # Where 'API_Grandes_Numeros_STN.R' is the location of the file shown above
+r$run(port=8000)

@@ -1,0 +1,58 @@
+C:/Users/fernando.barbalho/Documents/Projetos CEAD/Nuvem Imprensa STN/CLIPPING - JORNAIS IMPRESSOS  23.02.2018 (sexta-feira) .txt
+txt <- "C:/Users/fernando.barbalho/Documents/Projetos CEAD/Nuvem Imprensa STN/CLIPPING - JORNAIS IMPRESSOS  23.02.2018 (sexta-feira) .txt"
+readLines("txt",encoding="UTF-8")
+sentences<-scan("C:/Users/fernando.barbalho/Documents/Projetos CEAD/Nuvem Imprensa STN/CLIPPING - JORNAIS IMPRESSOS  23.02.2018 (sexta-feira) .txt","character",sep="\n")
+#Replace full stop and comma
+sentences<-gsub("\\.","",sentences)
+sentences<-gsub("\\,","",sentences)
+#Split sentence
+words<-strsplit(sentences," ")
+#Calculate word frequencies
+words.freq<-data.frame(table(unlist(words)))
+
+
+library(ckanr)
+library(lubridate)
+library(zoo)
+library(stringr)
+
+
+set_data_rel<- unique(series_temporais_analise_rec$Data)
+
+set_data_rel<- set_data_rel[-c(248:253)]
+
+set_data_rel<- set_data_rel[-c(21)]
+
+set_data_rel<- set_data_rel[c(1:11)]
+
+set_data_rel <- set_data_rel[which(substr(set_data_rel,1,4) %in% c("1997":"1999")) ]
+
+data_rel <- "2013-01-01"
+
+for (i in length(set_data_rel):1){
+  
+  data_rel <- set_data_rel[i]
+  
+  arquivo<-paste0("C:/Notas de Imprensa/Notas anteriores/Internet/",month(data_rel,label = TRUE, abbr = TRUE),year(data_rel),"/Nim", month(data_rel,label = TRUE, abbr = TRUE), year(data_rel),".pdf")
+  
+  
+  nomearquivo<- paste0("Nim",month(data_rel,label = TRUE, abbr = TRUE),year(data_rel),".pdf")
+  
+  nome_recurso <- paste0("Relatório do RTN de ",str_to_title(month(data_rel,label = TRUE, abbr = FALSE))," de ",year(data_rel))
+  
+  resource_create(package_id = "343739de-7560-47af-8a0e-d51b363ec273", rcurl = nomearquivo, 
+                  , name = nome_recurso,
+                  key = "8aa63953-671a-409f-88d3-0d9ba0591a1c", upload= arquivo,
+                  url = "http://www.tesourotransparente.gov.br/ckan/")
+  
+  
+  
+  
+}
+
+rubrica<- "I. RECEITA TOTAL"
+ano <- c("2016","2017","2018")
+
+plot(series_temporais_analise[series_temporais_analise$Rubrica == rubrica & substr(series_temporais_analise$Data,1,4)%in%ano ,c(2,3)], type="l")
+
+library(estatisticasrtn)

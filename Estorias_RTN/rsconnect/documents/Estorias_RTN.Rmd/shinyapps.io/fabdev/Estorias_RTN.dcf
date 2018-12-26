@@ -1,0 +1,13 @@
+name: Estorias_RTN
+title: Estorias_RTN
+username:
+account: fabdev
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 286303
+bundleId: 1644121
+url: https://fabdev.shinyapps.io/Estorias_RTN/
+when: 1539624773.18359
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app.R

@@ -1,0 +1,13 @@
+name: Analise_RTN
+title: Analise_RTN
+username:
+account: fabdev
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 312380
+bundleId: 1450075
+url: https://fabdev.shinyapps.io/Analise_RTN/
+when: 1530025098.06754
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app.R

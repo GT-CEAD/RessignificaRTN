@@ -1,0 +1,7 @@
+"0","load(""serie_trabalho_prim.Rdata"")"
+"0","write.csv2(serie_trabalho, ""./file.csv"")"
+"0","library(magrittr)"
+"0","readLines(""./file.csv"") %>% "
+"0","  paste0(collapse=""\n"") %>% "
+"0","  openssl::base64_encode() -> encoded"
+"0","rm(serie_trabalho)"
